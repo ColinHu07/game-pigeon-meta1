@@ -1,0 +1,26 @@
+{
+  "name": "glass-pool",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "./node_modules/.bin/vite",
+    "build": "./node_modules/.bin/tsc && ./node_modules/.bin/vite build",
+    "build:pages": "./node_modules/.bin/tsc && ./node_modules/.bin/vite build --base=/game-pigeon-meta1/",
+    "build:docs": "./node_modules/.bin/tsc && ./node_modules/.bin/vite build --base=/game-pigeon-meta1/ --outDir=docs --emptyOutDir",
+    "typecheck": "./node_modules/.bin/tsc --noEmit",
+    "test": "./node_modules/.bin/vitest run && ./node_modules/.bin/playwright test",
+    "test:unit": "./node_modules/.bin/vitest run",
+    "test:e2e": "./node_modules/.bin/playwright test"
+  },
+  "dependencies": {
+    "matter-js": "^0.20.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/matter-js": "^0.19.8",
+    "typescript": "^5.8.3",
+    "vite": "^6.4.3",
+    "vitest": "^2.1.9"
+  }
+}
