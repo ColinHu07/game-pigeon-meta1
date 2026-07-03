@@ -8,11 +8,12 @@ declare global {
   }
 }
 
-export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () => void {
+export function attachInput(canvas: HTMLCanvasElement, controlSurface: HTMLElement, game: GlassPoolGame): () => void {
   let pointerDown = false;
   let pointerStart: Vec2 | undefined;
   let pointerStartAt = 0;
   let pointerStartedPhase: string | undefined;
+  let lastPointerUpAt = 0;
 
   const dispatch = (action: InputAction) => game.dispatch(action);
   window.glassPoolDispatch = dispatch;
@@ -25,8 +26,21 @@ export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () 
     };
   };
 
+  const select = () => {
+    const snapshot = game.snapshot();
+    dispatch(
+      snapshot.phase === 'placingCue'
+        ? { type: 'confirmCuePlacement' }
+        : snapshot.phase === 'charging'
+          ? { type: 'releaseShot' }
+          : { type: 'beginPowerCharge' },
+    );
+  };
+
   const onPointerDown = (event: PointerEvent) => {
+    event.preventDefault();
     canvas.focus();
+    controlSurface.focus();
     canvas.setPointerCapture(event.pointerId);
     pointerDown = true;
     pointerStart = canvasPoint(event);
@@ -42,6 +56,7 @@ export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () 
   };
 
   const onPointerMove = (event: PointerEvent) => {
+    event.preventDefault();
     const point = canvasPoint(event);
     const snapshot = game.snapshot();
     if (snapshot.phase === 'placingCue') return;
@@ -49,8 +64,10 @@ export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () 
   };
 
   const onPointerUp = (event: PointerEvent) => {
+    event.preventDefault();
     pointerDown = false;
-    canvas.releasePointerCapture(event.pointerId);
+    lastPointerUpAt = performance.now();
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
     const point = canvasPoint(event);
     const snapshot = game.snapshot();
     if (snapshot.phase === 'placingCue') {
@@ -69,18 +86,38 @@ export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () 
     dispatch({ type: 'releaseShot' });
   };
 
+  const onClick = (event: MouseEvent) => {
+    event.preventDefault();
+    controlSurface.focus();
+    if (performance.now() - lastPointerUpAt < 120) return;
+    select();
+  };
+
   const pressed = new Set<string>();
+  const normalizedKey = (event: KeyboardEvent): string => {
+    const key = event.key || event.code;
+    if (key === 'Left' || key === 'ArrowLeft') return 'ArrowLeft';
+    if (key === 'Right' || key === 'ArrowRight') return 'ArrowRight';
+    if (key === 'Up' || key === 'ArrowUp') return 'ArrowUp';
+    if (key === 'Down' || key === 'ArrowDown') return 'ArrowDown';
+    if (key === 'Return' || key === 'Select' || key === 'OK' || key === 'Accept') return 'Enter';
+    if (key === 'Esc' || key === 'GoBack' || key === 'BrowserBack') return 'Escape';
+    if (key === ' ' || key === 'Spacebar') return 'Space';
+    return event.code || key;
+  };
+
   const onKeyDown = (event: KeyboardEvent) => {
     const spinStep = 0.12;
     const powerStep = 0.08;
     const cueMoveStep = event.shiftKey ? 4 : 12;
     const aimStep = event.shiftKey ? 0.025 : 0.07;
-    if (event.code === 'Space' && pressed.has(event.code)) return;
-    if ((event.code === 'Enter' || event.code === 'NumpadEnter') && event.repeat) return;
-    if (event.code === 'Space') pressed.add(event.code);
+    const key = normalizedKey(event);
+    if (key === 'Space' && pressed.has(key)) return;
+    if (key === 'Enter' && event.repeat) return;
+    if (key === 'Space') pressed.add(key);
     const snapshot = game.snapshot();
 
-    if (event.code === 'ArrowLeft') {
+    if (key === 'ArrowLeft') {
       event.preventDefault();
       dispatch(
         snapshot.phase === 'placingCue'
@@ -89,7 +126,7 @@ export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () 
             ? { type: 'spinDelta', delta: { x: -spinStep, y: 0 } }
             : { type: 'aimDelta', deltaRad: -aimStep },
       );
-    } else if (event.code === 'ArrowRight') {
+    } else if (key === 'ArrowRight') {
       event.preventDefault();
       dispatch(
         snapshot.phase === 'placingCue'
@@ -98,7 +135,7 @@ export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () 
             ? { type: 'spinDelta', delta: { x: spinStep, y: 0 } }
             : { type: 'aimDelta', deltaRad: aimStep },
       );
-    } else if (event.code === 'ArrowUp') {
+    } else if (key === 'ArrowUp') {
       event.preventDefault();
       dispatch(
         snapshot.phase === 'placingCue'
@@ -107,7 +144,7 @@ export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () 
             ? { type: 'spinDelta', delta: { x: 0, y: spinStep } }
             : { type: 'powerDelta', delta: powerStep },
       );
-    } else if (event.code === 'ArrowDown') {
+    } else if (key === 'ArrowDown') {
       event.preventDefault();
       dispatch(
         snapshot.phase === 'placingCue'
@@ -116,44 +153,41 @@ export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () 
             ? { type: 'spinDelta', delta: { x: 0, y: -spinStep } }
             : { type: 'powerDelta', delta: -powerStep },
       );
-    } else if (event.code === 'Space') {
+    } else if (key === 'Space') {
       event.preventDefault();
       dispatch({ type: 'beginPowerCharge' });
-    } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
+    } else if (key === 'Enter') {
       event.preventDefault();
-      dispatch(
-        snapshot.phase === 'placingCue'
-          ? { type: 'confirmCuePlacement' }
-          : snapshot.phase === 'charging'
-            ? { type: 'releaseShot' }
-            : { type: 'beginPowerCharge' },
-      );
-    } else if (event.code === 'Escape' || event.code === 'Backspace') {
+      select();
+    } else if (key === 'Escape' || key === 'Backspace') {
       event.preventDefault();
       dispatch({ type: 'cancel' });
     }
   };
 
   const onKeyUp = (event: KeyboardEvent) => {
-    pressed.delete(event.code);
-    if (event.code === 'Space') {
+    const key = normalizedKey(event);
+    pressed.delete(key);
+    if (key === 'Space') {
       event.preventDefault();
       dispatch({ type: 'releaseShot' });
     }
   };
 
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
-  canvas.addEventListener('pointerup', onPointerUp);
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', onKeyUp);
+  controlSurface.addEventListener('pointerdown', onPointerDown);
+  controlSurface.addEventListener('pointermove', onPointerMove);
+  controlSurface.addEventListener('pointerup', onPointerUp);
+  controlSurface.addEventListener('click', onClick);
+  window.addEventListener('keydown', onKeyDown, true);
+  window.addEventListener('keyup', onKeyUp, true);
 
   return () => {
     delete window.glassPoolDispatch;
-    canvas.removeEventListener('pointerdown', onPointerDown);
-    canvas.removeEventListener('pointermove', onPointerMove);
-    canvas.removeEventListener('pointerup', onPointerUp);
-    window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('keyup', onKeyUp);
+    controlSurface.removeEventListener('pointerdown', onPointerDown);
+    controlSurface.removeEventListener('pointermove', onPointerMove);
+    controlSurface.removeEventListener('pointerup', onPointerUp);
+    controlSurface.removeEventListener('click', onClick);
+    window.removeEventListener('keydown', onKeyDown, true);
+    window.removeEventListener('keyup', onKeyUp, true);
   };
 }

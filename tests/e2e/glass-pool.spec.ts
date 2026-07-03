@@ -59,10 +59,10 @@ test('enter toggles charge and shoot for glasses input', async ({ page }) => {
 test('quick taps toggle charge and shoot for glasses click input', async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 600 });
   await page.goto('/');
-  const canvas = page.locator('#game');
-  await canvas.click({ position: { x: 300, y: 402 } });
+  const controlSurface = page.locator('#control-surface');
+  await controlSurface.click({ position: { x: 300, y: 402 } });
   await page.waitForTimeout(180);
-  await canvas.click({ position: { x: 300, y: 402 } });
+  await controlSurface.click({ position: { x: 300, y: 402 } });
 
   await expect
     .poll(async () =>
