@@ -11,6 +11,8 @@ declare global {
 export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () => void {
   let pointerDown = false;
   let pointerStart: Vec2 | undefined;
+  let pointerStartAt = 0;
+  let pointerStartedPhase: string | undefined;
 
   const dispatch = (action: InputAction) => game.dispatch(action);
   window.glassPoolDispatch = dispatch;
@@ -28,7 +30,9 @@ export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () 
     canvas.setPointerCapture(event.pointerId);
     pointerDown = true;
     pointerStart = canvasPoint(event);
+    pointerStartAt = performance.now();
     const snapshot = game.snapshot();
+    pointerStartedPhase = snapshot.phase;
     if (snapshot.phase === 'placingCue') {
       dispatch({ type: 'placeCueBall', point: pointerStart });
       return;
@@ -53,8 +57,14 @@ export function attachInput(canvas: HTMLCanvasElement, game: GlassPoolGame): () 
       dispatch({ type: 'placeCueBall', point });
       return;
     }
-    if (pointerStart && Math.hypot(pointerStart.x - point.x, pointerStart.y - point.y) < 5 && !pointerDown) {
+    const pointerTravel = pointerStart ? Math.hypot(pointerStart.x - point.x, pointerStart.y - point.y) : 0;
+    const wasQuickTap = performance.now() - pointerStartAt < 220 && pointerTravel < 8;
+
+    if (pointerStart && pointerTravel < 5 && !pointerDown) {
       dispatch({ type: 'setAimPoint', point });
+    }
+    if (wasQuickTap && pointerStartedPhase === 'aiming') {
+      return;
     }
     dispatch({ type: 'releaseShot' });
   };

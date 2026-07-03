@@ -55,3 +55,22 @@ test('enter toggles charge and shoot for glasses input', async ({ page }) => {
     )
     .not.toBe('0,0,0,0');
 });
+
+test('quick taps toggle charge and shoot for glasses click input', async ({ page }) => {
+  await page.setViewportSize({ width: 600, height: 600 });
+  await page.goto('/');
+  const canvas = page.locator('#game');
+  await canvas.click({ position: { x: 300, y: 402 } });
+  await page.waitForTimeout(180);
+  await canvas.click({ position: { x: 300, y: 402 } });
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const canvasNode = document.querySelector<HTMLCanvasElement>('#game')!;
+        const ctx = canvasNode.getContext('2d')!;
+        return Array.from(ctx.getImageData(300, 430, 1, 1).data).join(',');
+      }),
+    )
+    .not.toBe('0,0,0,0');
+});

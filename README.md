@@ -38,7 +38,7 @@ Glasses input maps to standard web key events:
 
 - Left/right swipe: aim cue
 - Up/down swipe: adjust shot power
-- Index pinch / Enter: start charging, then pinch again to shoot
+- Index pinch, tap, or Enter: start charging, then use the same action again to shoot
 - Middle pinch / Escape: cancel charge or reset after game over
 - Ball-in-hand: swipe up/down/left/right to move the cue ball, then index pinch / Enter to place it
 - Desktop only: hold Space to charge and release Space to shoot
